@@ -95,12 +95,12 @@ def pipeline_melange_clusterisation(dossier1, dossier2, image_size=(128, 128)):
     labels_kmeans, _ = clusterisation_kmeans(images_melanges_pca)
     images_melanges_pca_2d = pca.transform(images_melanges_pca)
 
-    afficher_clusters(images_melanges_pca_2d, labels_kmeans, "Corpus mélangé avec KMeans", legend_labels=["Finistère", "Yvelines"])
+    afficher_clusters(images_melanges_pca_2d, labels_kmeans, "Corpus Mélangé - KMeans", legend_labels=["Finistère", "Yvelines"])
 
     cm = confusion_matrix(vrais_labels, labels_kmeans)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Finistère", "Yvelines"])
     disp.plot()
-    plt.title("matrice de confusion avec KMeans des corpus mélangés")
+    plt.title("Corpus Mélange - KMeans")
     plt.show()
 
 # Variables de chemin à modifier
