@@ -61,3 +61,21 @@ plt.show()
 print("Clusterisation des textes :")
 for i, cluster in enumerate(clusters):
     print(f"Texte {i} : Cluster {cluster}, Label réel {labels[i]}")
+
+
+feature_array = np.array(vectorizer.get_feature_names_out())
+keywords = defaultdict(list)
+
+for cluster in np.unique(clusters):
+    cluster_indices = np.where(clusters == cluster)[0]
+
+    cluster_mean_tfidf = np.mean(X_tfidf[cluster_indices].toarray(), axis=0)
+
+    top_indices = cluster_mean_tfidf.argsort()[-10:][::-1]
+    top_keywords = feature_array[top_indices]
+
+    keywords[cluster].extend(top_keywords)
+
+print("\nThèmes identifiés par cluster :")
+for cluster, words in keywords.items():
+    print(f"Cluster {cluster} : {', '.join(words)}")
