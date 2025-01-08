@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import nltk
+from collections import defaultdict
+
+
 nltk.download('punkt_tab')
 
 nltk.download('stopwords')
