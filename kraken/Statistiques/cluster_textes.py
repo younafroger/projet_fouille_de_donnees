@@ -1,75 +1,92 @@
 import os
+import numpy as np
+import matplotlib.pyplot as plt
+from collections import defaultdict
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, silhouette_score
-from sklearn.model_selection import train_test_split  # Ajout de l'importation manquante
-import matplotlib.pyplot as plt
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-import nltk
-import numpy as np
-from collections import defaultdict
+from sklearn.metrics import silhouette_score
+from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import nltk
 
-
-
+# Télécharger les ressources nécessaires pour NLTK
 nltk.download('punkt')
 nltk.download('stopwords')
 
+# Initialisation
 stop_words = set(stopwords.words('french'))
-custom_stopwords = {'tous', 'doléances', 'cette', 'leurs', 'sans', 'plus', 'les', 'nous'}
+custom_stopwords = {'24', '25', '50' 'mars', 'vingt', 'sept', 'quatre', 'cent', 'mil', 'avril', 'deux', 'trois', 'neuf', 'mois', 'janvier', 'quils', 'quil', '22', 'leurs', 'leur', 'cette', 'ves', 're', 'ele', 'da', 'quatrevingt', 'cy', 'mars', '1789', 'cinq'}
 stop_words.update(custom_stopwords)
 
-chemins = ["resultats_finistere", "resultats_yvelines"]
+noms = {'jean', 'yves', 'françois', 'louis', 'michel', 'joseph', 'guillaume', 'pierre', 'cosson', 'lesneven', 'alain', 'hervé', 'nicolas', 'francois', 'ollivier', 'jacques', 'marie' 'corentin', 'jeau', 'allain', 'charles', ' corentin'}
+stop_words.update(noms)
 
+# Fonction pour lire et prétraiter les fichiers d'un dossier
+def read_and_process_files(folder):
+    filtered_text = []
+    file_names = []
 
-corpus = []
-labels = []
-filtered_text = []
-
-for label, chemin in enumerate(chemins):
-    for filename in os.listdir(chemin):
-        if filename.endswith('.txt'):
-            filepath = os.path.join(chemin, filename)
-            with open(filepath, 'r', encoding='utf-8', errors='ignore') as file:
+    for file_name in os.listdir(folder):
+        if file_name.lower().endswith('.txt'):
+            with open(os.path.join(folder, file_name), 'r', encoding='utf-8') as file:
                 text = file.read()
+
+            # Tokenisation et nettoyage
             tokens = word_tokenize(text)
-            filtered_tokens = [token.lower() for token in tokens if token.isalnum() and token.lower() not in stop_words]
-            corpus.append(" ".join(filtered_tokens))
-            labels.append(label)
+            filtered_tokens = [
+                token.lower()
+                for token in tokens
+                if token.isalnum() and token.lower() not in stop_words
+            ]
+            filtered_text.append(" ".join(filtered_tokens))
+            file_names.append(os.path.splitext(file_name)[0])
 
+    return filtered_text, file_names
 
-vectorizer = TfidfVectorizer(
-    max_df=0.85,
-    min_df=5,
-    max_features=1000,
-    ngram_range=(1, 2)
-)
-X_tfidf = vectorizer.fit_transform(corpus)
+# Lecture des fichiers des deux dossiers
+folders = ['transcriptions_finistere', 'transcriptions_yvelines'] #A modifier selon le corpus que l'on souhaite analyser
+all_texts = []
+all_file_names = []
 
+for folder in folders:
+    if os.path.exists(folder):
+        texts, file_names = read_and_process_files(folder)
+        all_texts.extend(texts)
+        all_file_names.extend(file_names)
+
+# Vectorisation TF-IDF
+vectorizer = TfidfVectorizer(max_df=0.95, min_df=5)
+X_tfidf = vectorizer.fit_transform(all_texts)
+
+# Réduction de dimensionnalité avec PCA
 pca = PCA(n_components=10)
 X_pca = pca.fit_transform(X_tfidf.toarray())
 
-silhouette_values = []
+# Détermination du nombre optimal de clusters
+silhouette_scores = []
 for k in range(2, 10):
     kmeans = KMeans(n_clusters=k, random_state=42)
     clusters = kmeans.fit_predict(X_pca)
-    silhouette_values.append(silhouette_score(X_pca, clusters))
+    silhouette_scores.append(silhouette_score(X_pca, clusters))
 
-optimal_k = silhouette_values.index(max(silhouette_values)) + 2
-
+optimal_k = silhouette_scores.index(max(silhouette_scores)) + 2
 print(f"Nombre optimal de clusters : {optimal_k}")
 
+# Clustering avec le nombre optimal de clusters
 kmeans = KMeans(n_clusters=optimal_k, random_state=42)
 clusters = kmeans.fit_predict(X_pca)
 
+# Visualisation des clusters
 plt.scatter(X_pca[:, 0], X_pca[:, 1], c=clusters, cmap='viridis', alpha=0.7)
 plt.title('Clusterisation avec KMeans')
 plt.xlabel('PCA 1')
 plt.ylabel('PCA 2')
 plt.show()
 
+# Extraction des mots-clés par cluster
 feature_array = np.array(vectorizer.get_feature_names_out())
 keywords = defaultdict(list)
 
@@ -83,16 +100,14 @@ for cluster in np.unique(clusters):
 
     keywords[cluster] = top_keywords
 
+# Affichage des mots-clés
 print("\nThèmes identifiés par cluster :")
 for cluster, words in keywords.items():
     print(f"Cluster {cluster} : {', '.join(words)}")
 
-y = np.array(clusters)
-X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
-
-svm = SVC(kernel='linear')
-svm.fit(X_train, y_train)
-y_pred = svm.predict(X_test)
-
-
-
+# Afficher les textes par cluster
+for cluster_num in range(optimal_k):
+    print(f"\nTextes du cluster {cluster_num + 1} :")
+    for idx, text in enumerate(all_texts):
+        if clusters[idx] == cluster_num:
+            print(f"Paroisse : {all_file_names[idx]}")
